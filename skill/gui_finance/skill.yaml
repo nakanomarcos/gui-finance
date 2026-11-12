@@ -1,0 +1,5 @@
+name: "gui_finance"
+title: "Gui Finance pelo chat"
+description: "Lança receitas e despesas no aplicativo Gui Finance (banco interno, só ¥) a partir de uma frase no chat, com confirmação quando houver ambiguidade. Usar quando o usuário pedir para lançar no Gui Finance ou disser que gastou, pagou ou recebeu um valor para registrar no app."
+category: "Finance"
+include_in_prompt: true
