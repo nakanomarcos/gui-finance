@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gui Finance — referência</title>
+<!--
+  Implementação de REFERÊNCIA do Gui Finance, em um único arquivo, com dados no
+  localStorage do navegador. Serve para consulta visual e de comportamento.
+  O app de verdade é construído pelo Muse como espaço com banco interno,
+  seguindo o SPEC.md da raiz deste repositório.
+-->
+<style>
+  :root{
+    --bg:#0A0D12; --card:#12161d; --line:#1f2733; --txt:#e8eef4; --mut:#8fa1b3;
+    --acc:#00E5FF; --neg:#ff6b81; --pos:#37e08b;
+  }
+  body.light{ --bg:#f4f6f8; --card:#ffffff; --line:#dde4ea; --txt:#16202a; --mut:#5c6d7d; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--txt)}
+  header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  header h1{font-size:18px;margin:0;flex:1}
+  header button{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:7px 11px;cursor:pointer;font-size:15px}
+  main{padding:16px;max-width:560px;margin:0 auto;padding-bottom:96px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--acc),transparent)}
+  .mic{display:block;margin:8px auto;width:110px;height:110px;border-radius:50%;border:2px solid var(--acc);background:transparent;color:var(--acc);font-size:42px;cursor:pointer}
+  .mic.listening{box-shadow:0 0 24px var(--acc)}
+  .center{text-align:center;color:var(--mut)}
+  label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.06em}
+  input,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:16px}
+  .row{display:flex;gap:10px}.row>div{flex:1}
+  .btn{width:100%;padding:12px;border:none;border-radius:10px;background:var(--acc);color:#04222a;font-weight:700;font-size:16px;cursor:pointer;margin-top:14px}
+  .btn.ghost{background:transparent;color:var(--mut);border:1px solid var(--line)}
+  .item{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:none}
+  .item .d{flex:1}.item .d small{display:block;color:var(--mut)}
+  .item .v{font-variant-numeric:tabular-nums;font-weight:700}
+  .item .del{background:none;border:none;color:var(--neg);font-size:17px;cursor:pointer}
+  .neg{color:var(--neg)}.pos{color:var(--pos)}
+  .bar{height:10px;border-radius:6px;background:var(--acc);margin:4px 0 12px;min-width:2px}
+  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line)}
+  nav button{flex:1;padding:14px 6px;background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer}
+  nav button.on{color:var(--acc);font-weight:700}
+  .hidden{display:none}
+  .err{color:var(--neg);text-align:center;min-height:20px}
+  .tot{display:flex;gap:10px}.tot div{flex:1;text-align:center}
+  .tot b{display:block;font-size:17px;margin-top:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Gui Finance</h1>
+  <button id="eyeBtn" title="Mostrar ou ocultar valores">🙈</button>
+  <button id="themeBtn" title="Tema dia ou noite">☀️</button>
+</header>
+<main>
+  <!-- Lançar -->
+  <section id="tab-lancar">
+    <div class="card">
+      <button class="mic" id="micBtn">🎤</button>
+      <p class="center" id="micState">Toque e fale o gasto</p>
+      <p class="err" id="micErr"></p>
+      <div id="confirmCard" class="hidden">
+        <p id="confirmText" style="text-align:center;font-size:17px"></p>
+        <button class="btn" id="confirmYes">Confirmar</button>
+        <button class="btn ghost" id="confirmFix">Corrigir</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div><label>Tipo</label>
+          <select id="fType"><option value="despesa">Despesa</option><option value="receita">Receita</option></select></div>
+        <div><label>Data</label><input type="date" id="fDate"></div>
+      </div>
+      <label>Descrição</label><input id="fDesc" placeholder="Ex.: Sukiya">
+      <div class="row">
+        <div><label>Valor (¥)</label><input id="fAmount" type="number" min="1" inputmode="numeric"></div>
+        <div><label>Categoria</label>
+          <select id="fCat">
+            <option>Alimentação</option><option>Supermercado</option><option>Salário</option>
+            <option>Impostos</option><option>Transporte</option><option>Saúde</option>
+            <option>Lazer</option><option>Compras</option><option>Outros</option>
+          </select></div>
+      </div>
+      <label>Forma de pagamento</label>
+      <select id="fPay">
+        <option>Dinheiro</option><option>Cartão de Débito</option><option>Cartão de Crédito</option>
+        <option>Carteira Digital</option><option>Transferência Bancária</option>
+        <option>Cashback</option><option>Voucher</option><option>Pontos</option><option>Outros</option>
+      </select>
+      <button class="btn" id="saveBtn">Lançar</button>
+    </div>
+    <div class="card tot">
+      <div>Entradas<b class="pos" data-val id="tIn">¥0</b></div>
+      <div>Saídas<b class="neg" data-val id="tOut">¥0</b></div>
+      <div>Saldo<b data-val id="tBal">¥0</b></div>
+    </div>
+  </section>
+
+  <!-- Lançamentos -->
+  <section id="tab-lista" class="hidden">
+    <div class="card">
+      <input id="search" placeholder="Buscar">
+      <div id="list"></div>
+    </div>
+  </section>
+
+  <!-- Estatísticas -->
+  <section id="tab-stats" class="hidden">
+    <div class="card"><h3 style="margin-top:0">Despesas por categoria</h3><div id="catBars"></div></div>
+    <div class="card"><h3 style="margin-top:0">Despesas por forma de pagamento</h3><div id="payBars"></div></div>
+    <div class="card tot">
+      <div>Entradas<b class="pos" data-val id="sIn">¥0</b></div>
+      <div>Saídas<b class="neg" data-val id="sOut">¥0</b></div>
+      <div>Saldo<b data-val id="sBal">¥0</b></div>
+    </div>
+  </section>
+</main>
+<nav>
+  <button data-tab="tab-lancar" class="on">Lançar</button>
+  <button data-tab="tab-lista">Lançamentos</button>
+  <button data-tab="tab-stats">Estatísticas</button>
+</nav>
+<script>
+const KEY="gui-finance-ref-v1";
+let txs=JSON.parse(localStorage.getItem(KEY)||"[]");
+let hidden=true, pending=null;
+const $=id=>document.getElementById(id);
+const fmt=v=>"¥"+Math.abs(v).toLocaleString("ja-JP");
+function mask(){document.querySelectorAll("[data-val]").forEach(el=>{el.dataset.real=el.textContent; if(hidden)el.textContent="¥•••";});}
+function render(){
+  const inn=txs.filter(t=>t.type==="receita").reduce((s,t)=>s+t.amount_yen,0);
+  const out=txs.filter(t=>t.type==="despesa").reduce((s,t)=>s+t.amount_yen,0);
+  [["tIn",inn],["sIn",inn]].forEach(([id,v])=>$(id).textContent=fmt(v));
+  [["tOut",out],["sOut",out]].forEach(([id,v])=>$(id).textContent=fmt(v));
+  [["tBal",inn-out],["sBal",inn-out]].forEach(([id,v])=>$(id).textContent=(v<0?"-":"")+fmt(v));
+  const q=($("search").value||"").toLowerCase();
+  $("list").innerHTML=txs.filter(t=>(t.description+" "+t.category).toLowerCase().includes(q))
+    .map(t=>`<div class="item"><div class="d"><b>${t.description}</b><small>${t.date.split("-").reverse().join("/")} · ${t.category} · ${t.payment_method}</small></div>
+      <span class="v ${t.type==="despesa"?"neg":"pos"}">${t.type==="despesa"?"-":"+"}${hidden?"¥•••":fmt(t.amount_yen)}</span>
+      <button class="del" onclick="delTx(${t.id})">🗑</button></div>`).join("")||'<p class="center">Nenhum lançamento</p>';
+  bars("catBars","category"); bars("payBars","payment_method");
+  mask();
+}
+function bars(el,key){
+  const sums={}; txs.filter(t=>t.type==="despesa").forEach(t=>sums[t[key]]=(sums[t[key]]||0)+t.amount_yen);
+  const entries=Object.entries(sums).sort((a,b)=>b[1]-a[1]); const max=entries.length?entries[0][1]:0;
+  $(el).innerHTML=entries.map(([k,v])=>`<div>${k} · <span data-val>${fmt(v)}</span></div><div class="bar" style="width:${max?Math.round(v/max*100):0}%"></div>`).join("")||'<p class="center">Sem dados</p>';
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(txs));}
+function add(tx){tx.id=Date.now()+Math.random(); txs.unshift(tx); save(); render();}
+function delTx(id){txs=txs.filter(t=>t.id!==id); save(); render();}
+$("saveBtn").onclick=()=>{
+  const amount=parseInt($("fAmount").value,10);
+  if(!$("fDesc").value.trim()||!amount)return alert("Preencha descrição e valor.");
+  add({date:$("fDate").value||new Date().toISOString().slice(0,10),type:$("fType").value,
+    description:$("fDesc").value.trim(),amount_yen:amount,category:$("fCat").value,payment_method:$("fPay").value});
+  $("fDesc").value=""; $("fAmount").value="";
+};
+$("search").oninput=render;
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));
+  $(b.dataset.tab).classList.remove("hidden");
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b)); render();
+});
+$("eyeBtn").onclick=()=>{hidden=!hidden; $("eyeBtn").textContent=hidden?"🙈":"👁"; render();};
+$("themeBtn").onclick=()=>{document.body.classList.toggle("light"); $("themeBtn").textContent=document.body.classList.contains("light")?"🌙":"☀️";};
+/* Voz: interpreta valor em dígitos, lugar, categoria simples e forma */
+function guessCat(d){d=d.toLowerCase();
+  if(/mercado|torisen|yaoko|beisia/.test(d))return "Supermercado";
+  if(/sal[aá]rio/.test(d))return "Salário";
+  if(/imposto|zeikin/.test(d))return "Impostos";
+  return "Alimentação";}
+function parseSpeech(text){
+  const m=text.replace(/\./g,"").match(/(\d[\d\s]*)/);
+  if(!m)return null;
+  const amount=parseInt(m[1].replace(/\s/g,""),10);
+  let desc=text.replace(m[0],"").replace(/ienes|iene|yen|no d[eé]bito|no cr[eé]dito|em dinheiro/gi,"").trim()||"Lançamento por voz";
+  desc=desc.charAt(0).toUpperCase()+desc.slice(1);
+  let pay="Dinheiro";
+  if(/d[eé]bito/i.test(text))pay="Cartão de Débito"; else if(/cr[eé]dito/i.test(text))pay="Cartão de Crédito";
+  return {date:new Date().toISOString().slice(0,10),type:/receb|sal[aá]rio/i.test(text)?"receita":"despesa",
+    description:desc,amount_yen:amount,category:guessCat(text),payment_method:pay};
+}
+$("micBtn").onclick=()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  $("micErr").textContent="";
+  if(!SR){$("micErr").textContent="Reconhecimento de voz não disponível aqui. Use o microfone do teclado no campo de descrição.";return;}
+  const r=new SR(); r.lang="pt-BR";
+  r.onstart=()=>{$("micBtn").classList.add("listening"); $("micState").textContent="Ouvindo…";};
+  r.onend=()=>$("micBtn").classList.remove("listening");
+  r.onerror=e=>{$("micErr").textContent="Erro de voz: "+e.error; $("micState").textContent="Toque e fale o gasto";};
+  r.onresult=e=>{
+    const text=e.results[0][0].transcript; const tx=parseSpeech(text);
+    if(!tx){$("micErr").textContent="Não entendi o valor. Tente de novo ou use o formulário.";return;}
+    pending=tx;
+    $("confirmText").textContent=`${tx.description} · ${fmt(tx.amount_yen)} · ${tx.category} · ${tx.payment_method}`;
+    $("confirmCard").classList.remove("hidden"); $("micState").textContent="Confira o lançamento";
+  };
+  r.start();
+};
+$("confirmYes").onclick=()=>{if(pending)add(pending); pending=null; $("confirmCard").classList.add("hidden"); $("micState").textContent="Toque e fale o gasto";};
+$("confirmFix").onclick=()=>{ if(!pending)return;
+  $("fType").value=pending.type; $("fDate").value=pending.date; $("fDesc").value=pending.description;
+  $("fAmount").value=pending.amount_yen; $("fCat").value=pending.category; $("fPay").value=pending.payment_method;
+  pending=null; $("confirmCard").classList.add("hidden"); };
+$("fDate").value=new Date().toISOString().slice(0,10);
+render();
+</script>
+</body>
+</html>
